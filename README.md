@@ -180,7 +180,7 @@ Install `seesaw` using `pip2` instead of `pip`.
 
 ### Issues in the code
 
-If you notice a bug and want to file a bug report, please use the GitHub issues tracker.
+If you notice a bug and want to file a bug report, please report it to us on IRC. If you get a crash, copy and paste the log of the crash, and of at least ~10 lines before the crash, into pastebin or somewhere similar. Make sure to check that there's not a message that the crash is expected.
 
 Are you a developer? Help write code for us! Look at our [developer documentation](http://archiveteam.org/index.php?title=Dev) for details.
 

@@ -16,6 +16,7 @@ local tries = 0
 local downloaded = {}
 local addedtolist = {}
 local abortgrab = false
+local set_item_yet = false
 
 local discovered_items = {}
 local last_main_site_time = 0
@@ -23,7 +24,12 @@ local current_item_type = nil
 local current_item_value = nil
 local next_start_url_index = 1
 
-local current_username = nil
+local PAGE_SIZE = 30
+local DATE_SLICE_TARGET_SECONDS = 1200
+
+local last_id_result = nil
+local previously_queued_date = nil
+
 
 io.stdout:setvbuf("no") -- So prints are not buffered - http://lua.2524044.n2.nabble.com/print-stdout-and-flush-td6406981.html
 
@@ -33,7 +39,7 @@ if urlparse == nil or http == nil then
   abortgrab = true
 end
 
-local do_debug = false
+local do_debug = true
 print_debug = function(a)
   if do_debug then
     print(a)
@@ -48,7 +54,9 @@ end
 
 -- Function to be called whenever an item's download ends.
 end_of_item = function()
-  current_username = nil
+  last_id_result = nil
+  previously_queued_date = nil
+
 end
 
 set_new_item = function(url)
@@ -62,7 +70,7 @@ set_new_item = function(url)
   end
   assert(current_item_type)
   assert(current_item_value)
-
+  set_item_yet = true
 end
 
 discover_item = function(item_type, item_name)
@@ -127,36 +135,28 @@ allowed = function(url, parenturl)
     tested[s] = tested[s] + 1
   end
 
-  -- Profile page has "force" set on check()
-  if string.match(url, "^https?://curiouscat%.live/api/")
-    or string.match(url, "^https?://curiouscat%.live/[^/]+/post/[0-9]+$")
-    or string.match(url, "^https?://m%.curiouscat%.live/")
-    or string.match(url, "^https?://aws%.curiouscat%.me/") -- Replacement for m. ?
-    or string.match(url, "^https://media%.tenor%.com/images/") then
+  if string.match(url, "^https?://[^/]+%.radikal.ru/")
+    or string.match(url, "^https?://radikal.ru/") then
     print_debug("allowing " .. url .. " from " .. parenturl)
     return true
   end
 
   return false
-
-  --return false
-
-  --assert(false, "This segment should not be reachable")
 end
 
 
 
 wget.callbacks.download_child_p = function(urlpos, parent, depth, start_url_parsed, iri, verdict, reason)
   local url = urlpos["url"]["url"]
-  --print_debug("DCP on " .. url)
   if downloaded[url] == true or addedtolist[url] == true then
     return false
   end
+  -- No reason to allow this at this stage of the project
+  --[[
   if allowed(url, parent["url"]) then
     addedtolist[url] = true
-    --set_derived_url(url)
     return true
-  end
+  end]]
 
   return false
 end
@@ -239,86 +239,86 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
     end
     return html
   end
+  
+  local function queue_gallery_query(image_id_anchor, direction, pagesize, date_anchor)
+    table.insert(urls, {url="https://radikal.ru/Img/GetGalleryPage",
+                        post_data="AnchorId=" .. image_id_anchor .. "&Direct=" .. direction ..
+                        "&Tag=&PageSize=" .. pagesize .. "&DateTimeAnchor=" .. date_anchor})
+  end
 
-  if current_item_type == "userid" then
-    -- New starting point
-    if string.match(url, "^https?://curiouscat%.live/api/v2%.1/get_profile_userData%?userID=") then
-      local json = JSON:decode(load_html())
-      if json["error"] == "404" or json["error"] == 404 then
-        print("ID -> profile req indicates user does not exist")
-      else
-        current_username = json["userData"]["username"]
-        check("https://curiouscat.live/" .. current_username, true)
-      end
-    end
-    
-    if string.match(url, "https?://curiouscat%.live/[^/]+$") and status_code == 200 then
-      assert(string.match(load_html(), "<title>CuriousCat</title><link")) -- To make sure it's still up
-      check("https://curiouscat.live/api/v2.1/profile?username=" .. current_username .. "&_ob=registerOrSignin2")
-      check("https://curiouscat.live/api/v2/ad/check?path=/" .. current_username .. "&_ob=registerOrSignin2")
-    end
+  if current_item_type == 'idrange' then
+    local first_id = string.match(current_item_value, "^(%d+)%-") -- Noninclusive
+    local last_id = string.match(current_item_value, "%-(%d+)$") -- Inclusive
+    assert(first_id and last_id)
+    if url == "https://this-is-a.dummy-site.jaa-wants-the-tld.invalid/" .. current_item_value then
+      -- Start URL
+      queue_gallery_query(first_id, "0", tostring(PAGE_SIZE), "")
+    elseif url == "https://radikal.ru/Img/GetGalleryPage" then
+      local j = JSON:decode(load_html())
 
-    if string.match(url, "^https?://curiouscat%.live/api/v2%.1/profile%?") and status_code == 200 then
-        print_debug("API on " .. url)
-        local json = JSON:decode(load_html())
-        if json["error"] == 404 then
-          error("This should not happen anymore")
-        else
-          assert(json["error"] == nil, "error unacceptable: " .. JSON:encode(json["error"]))
-          local lowest_ts = 100000000000000
-          for _, post in pairs(json["posts"]) do
-            local content_block = nil
-            local time = nil
-            if post["type"] == "post" then
-              content_block = post["post"]
-              time = post["post"]["timestamp"]
-            elseif post["type"] == "status" then
-              content_block = post["status"]
-              time = post["status"]["timestamp"]
-            elseif post["type"] == "shared_post" then
-              content_block = post["post"]
-              time = post["shared_timestamp"]
-            else
-              error("Unknown post type " .. post["type"])
-            end
+      -- Some asserts
+      assert(not j["IsError"])
+      assert(not j["UrlForRedirect"]) -- Don't know what this is for
 
-            if content_block then
-              check((content_block["addresseeData"] or content_block["author"])["avatar"])
-              check((content_block["addresseeData"] or content_block["author"])["banner"])
+      local imgs = j["Imgs"]
+      local is_finished = false
+      assert(#imgs == PAGE_SIZE)
+      for i = #imgs, 1, -1 do -- Iterate through the response from finish to start, i.e. in order of increasing IDs
+        local this_img = imgs[i]
 
-              if content_block["media"] then
-                assert(allowed(content_block["media"]["img"], url), content_block["media"]["img"]) -- Don't just want to silently discard this on a failed assumption
-                check(content_block["media"]["img"])
-              end
-
-              assert(content_block["likes"])
-              if content_block["likes"] > 0 then
-                check("https://curiouscat.live/api/v2/post/likes?postid=" .. tostring(content_block["id"]) .. "&_ob=registerOrSignin2")
-              end
-
-              -- Remove this block if the project looks uncertain
-              if post["type"] ~= "shared_post" then
-                check("https://curiouscat.live/" .. current_username .. "/post/" .. tostring(content_block["id"]))
-                check("https://curiouscat.live/api/v2.1/profile/single_post?username=" .. current_username .. "&post_id=" .. tostring(content_block["id"]) .. "&_ob=registerOrSignin2")
-                check("https://curiouscat.live/api/v2/ad/check?path=/" .. current_username .. "/post/" .. tostring(content_block["id"]) .. "&_ob=registerOrSignin2")
-              end
-            end
-
-            if time and time < lowest_ts then
-                lowest_ts = time
-              end
-          end
-
-
-          if lowest_ts == 100000000000000 then
-            assert(not string.match(url, "&max_timestamp=")) -- Something is wrong if we get an empty on a page other than the first
-          else
-            check("https://curiouscat.live/api/v2.1/profile?username=" .. current_username .. "&max_timestamp=" .. tostring(lowest_ts) .. "&_ob=registerOrSignin2") -- Following Jodizzle's scheme, this just uses the queued URLs as a set, and "detects" the last page by the fact that the lowest is it itself
-          end
+        -- Break if it is finished
+        if this_img["IdLong"] > tonumber(last_id) then
+          is_finished = true
+          break
         end
+
+        -- Queue the thumbnail
+        local t_type_thumbnail = this_img["PublicPrevUrl"]
+        assert(string.match(t_type_thumbnail, "^https?://[is]%d+%.radikal.ru/.+t%.jpg$"))
+        check(this_img["PublicPrevUrl"])
+      end
+      -- Queue the next page
+      if not is_finished then
+        queue_gallery_query(j["LeftAnchor"], "0", tostring(PAGE_SIZE), "")
+      end
     end
   end
 
+  if current_item_type == 'daterange' then
+    local start_date = tonumber(string.match(current_item_value, "^(%d+)%-")) -- Noninclusive
+    local stop_date = tonumber(string.match(current_item_value, "%-(%d+)$")) -- Inclusive
+    assert(start_date and stop_date)
+    if url == "https://this-is-a.dummy-site.jaa-wants-the-tld.invalid/d" .. current_item_value then
+      -- Start URL
+      queue_gallery_query("", "0", "1", tostring(start_date) .. "000")
+      previously_queued_date = start_date
+    elseif url == "https://radikal.ru/Img/GetGalleryPage" then
+      local j = JSON:decode(load_html())
+      assert(not j["IsError"])
+      assert(not j["UrlForRedirect"]) -- Don't know what this is for
+
+      local this_id_result = j["Imgs"][1]["IdLong"]
+      print_debug("This ID result is " .. this_id_result)
+
+      if last_id_result then
+        assert(this_id_result > last_id_result)
+        discover_item("idrange", tostring(last_id_result) .. "-" .. tostring(this_id_result))
+      end -- Else this is after the first iteration
+
+      last_id_result = this_id_result
+
+
+      -- Put AFTER we queue the stuff
+      if previously_queued_date < stop_date then
+        local next_date = math.min(previously_queued_date + DATE_SLICE_TARGET_SECONDS, stop_date)
+        -- Queue the next
+        print_debug("Queueing at " .. tostring(next_date) .. "000")
+        queue_gallery_query("", "0", "1", tostring(next_date) .. "000")
+        previously_queued_date = next_date
+      end
+
+    end
+  end
 
   if status_code == 200 and not (string.match(url, "%.jpe?g$") or string.match(url, "%.png$")) then
     -- Completely disabled because I can't be bothered
@@ -348,6 +348,9 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
 end
 
 wget.callbacks.httploop_result = function(url, err, http_stat)
+  if not set_item_yet then
+    set_new_item(url["url"])
+  end
   status_code = http_stat["statcode"]
 
   url_count = url_count + 1
@@ -396,18 +399,16 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
   local maxtries = 12
   local url_is_essential = true
 
+  local is_valid_0 = url["url"] == "https://this-is-a.dummy-site.jaa-wants-the-tld.invalid/" .. current_item_value
+                  or url["url"] == "https://this-is-a.dummy-site.jaa-wants-the-tld.invalid/d" .. current_item_value
+  local is_valid_404 = string.match(url["url"], "^https?://[is]%d+%.radikal.ru/")
+
   -- Whitelist instead of blacklist status codes
-  if status_code ~= 200 then
+  if status_code ~= 200
+    and not (status_code == 0 and is_valid_0)
+    and not (status_code == 404 and is_valid_404) then
     print("Server returned " .. http_stat.statcode .. " (" .. err .. "). Sleeping.\n")
     do_retry = true
-  end
-
-  -- Check for rate limiting in the API (status code == 200)
-  if string.match(url["url"], "^https?://curiouscat%.live/api/") then
-    if string.match(read_file(http_stat["local_file"]), "^{'error': 'Wait") then
-      print("API rate-limited, sleeping")
-      do_retry = true
-    end
   end
 
   if do_retry then
@@ -427,7 +428,7 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
   end
 
   if do_retry and sleep_time > 0.001 then
-    print("Sleeping " .. sleep_time .. "s").
+    print("Sleeping " .. sleep_time .. "s")
     os.execute("sleep " .. sleep_time)
     return wget.actions.CONTINUE
   end
@@ -476,6 +477,7 @@ end
 
 
 wget.callbacks.finish = function(start_time, end_time, wall_time, numurls, total_downloaded_bytes, total_download_time)
+  queue_list_to(discovered_items, 'fill-me-in')
   end_of_item()
 end
 

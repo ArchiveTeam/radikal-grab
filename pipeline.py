@@ -60,7 +60,7 @@ if not WGET_AT:
 VERSION = '20211226.01'
 USER_AGENT = 'Archiveteam (https://wiki.archiveteam.org/; communicate at https://webirc.hackint.org/#ircs://irc.hackint.org/#archiveteam)'
 TRACKER_ID = 'curiouscat'
-TRACKER_HOST = 'legacy-api.arpa.li'
+TRACKER_HOST = 'legacy-api.arpa.lfwweewi'
 MULTI_ITEM_SIZE = 1
 
 
@@ -212,7 +212,6 @@ class WgetArgs(object):
             '--warc-header', 'operator: Archive Team',
             '--warc-header', 'x-wget-at-project-version: ' + VERSION,
             '--warc-header', 'x-wget-at-project-name: ' + TRACKER_ID,
-            '--warc-header', 'x-note: Previous versions of this project used fake DNS results to get around an expired domain name. The site has since relaunched under a new domain and we are capturing that; so this is good data and can go into the Wayback Machine.',
             '--warc-dedup-url-agnostic',
         ]
         
@@ -231,10 +230,17 @@ class WgetArgs(object):
             wget_args.extend(['--warc-header', 'x-wget-at-project-item-name: '+item_name])
             wget_args.append('item-name://' + item_name)
             item_type, item_value = item_name.split(':', 1)
-            if item_type == 'userid':
-                wget_args.extend(['--warc-header', 'curiouscat-userid: ' + item_value])
-                wget_args.append(f'https://curiouscat.live/api/v2.1/get_profile_userData?userID={item_value}')
-                set_start_url(item_type, item_value, f'https://curiouscat.live/api/v2.1/get_profile_userData?userID={item_value}')
+            if item_type == 'idrange':
+                wget_args.extend(['--warc-header', 'radikal-idrange: ' + item_value])
+                wget_args.append(f'https://this-is-a.dummy-site.jaa-wants-the-tld.invalid/{item_value}')
+                set_start_url(item_type, item_value, f'https://this-is-a.dummy-site.jaa-wants-the-tld.invalid/{item_value}')
+            elif item_type == 'daterange':
+                # Assumptions I'm making in this scheme:
+                # - If the list is modified in the middle, it's only deletions, not insertions
+                # - Items are not reinserted (derivable from the first) after being deleted; ranges don't go dark
+                wget_args.extend(['--warc-header', 'radikal-daterange: ' + item_value])
+                wget_args.append(f'https://this-is-a.dummy-site.jaa-wants-the-tld.invalid/d{item_value}')
+                set_start_url(item_type, item_value, f'https://this-is-a.dummy-site.jaa-wants-the-tld.invalid/d{item_value}')
             else:
                 raise ValueError('item_type not supported.')
 
