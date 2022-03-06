@@ -39,7 +39,7 @@ if urlparse == nil or http == nil then
   abortgrab = true
 end
 
-local do_debug = false
+local do_debug = true
 print_debug = function(a)
   if do_debug then
     print(a)
@@ -275,6 +275,10 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
         if this_img["IdLong"] > tonumber(last_id) then
           is_finished = true
           break
+        end
+
+        if this_img["OwnerUrlPart"] then
+          discover_item("user", this_img["OwnerUrlPart"])
         end
 
         -- Queue the thumbnail

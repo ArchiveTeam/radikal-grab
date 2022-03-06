@@ -241,6 +241,9 @@ class WgetArgs(object):
                 wget_args.extend(['--warc-header', 'radikal-daterange: ' + item_value])
                 wget_args.append(f'https://this-is-a.dummy-site.jaa-wants-the-tld.invalid/d{item_value}')
                 set_start_url(item_type, item_value, f'https://this-is-a.dummy-site.jaa-wants-the-tld.invalid/d{item_value}')
+            elif item_type == 'user':
+                print("Item type not supported yet.")
+                item_names_to_submit.remove(item_name)
             else:
                 raise ValueError('item_type not supported.')
 
