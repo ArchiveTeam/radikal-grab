@@ -59,7 +59,7 @@ if not WGET_AT:
 # It will be added to the WARC files and reported to the tracker.
 VERSION = '20211226.01'
 USER_AGENT = 'Archiveteam (https://wiki.archiveteam.org/; communicate at https://webirc.hackint.org/#ircs://irc.hackint.org/#archiveteam)'
-TRACKER_ID = 'curiouscat'
+TRACKER_ID = 'radikal'
 TRACKER_HOST = 'legacy-api.arpa.lfwweewi'
 MULTI_ITEM_SIZE = 1
 
@@ -173,7 +173,7 @@ class MaybeSendDoneToTracker(SendDoneToTracker):
 
 CWD = os.getcwd()
 PIPELINE_SHA1 = get_hash(os.path.join(CWD, 'pipeline.py'))
-LUA_SHA1 = get_hash(os.path.join(CWD, 'curiouscat.lua'))
+LUA_SHA1 = get_hash(os.path.join(CWD, 'radikal.lua'))
 
 def stats_id_function(item):
     d = {
@@ -193,7 +193,7 @@ class WgetArgs(object):
             '-nv',
             '--content-on-error',
             '--load-cookies', 'cookies.txt',
-            '--lua-script', 'curiouscat.lua',
+            '--lua-script', 'radikal.lua',
             '-o', ItemInterpolation('%(item_dir)s/wget.log'),
             '--no-check-certificate',
             '--output-document', ItemInterpolation('%(item_dir)s/wget.tmp'),
@@ -205,7 +205,7 @@ class WgetArgs(object):
             '--page-requisites',
             '--timeout', '30',
             '--tries', 'inf',
-            '--domains', 'curiouscat.qa',
+            '--domains', 'radikal.qa',
             '--span-hosts',
             '--waitretry', '30',
             '--warc-file', ItemInterpolation('%(item_dir)s/%(warc_file_base)s'),
@@ -266,10 +266,10 @@ class WgetArgs(object):
 # This will be shown in the warrior management panel. The logo should not
 # be too big. The deadline is optional.
 project = Project(
-    title = 'curiouscat',
+    title = 'radikal',
     project_html = '''
     <img class="project-logo" alt="logo" src="https://wiki.archiveteam.org/images/f/f5/CuriousCat_logo.png" height="50px"/>
-    <h2>CuriousCat <span class="links"><a href="https://curiouscat.live/">Website</a> &middot; <a href="http://tracker.archiveteam.org/curiouscat/">Leaderboard</a></span></h2>
+    <h2>Radikal.ru <span class="links"><a href="https://radikal.ru/">Website</a> &middot; <a href="http://tracker.archiveteam.org/radikal/">Leaderboard</a></span></h2>
     ''',
     )#utc_deadline = datetime.datetime(2021,9,13, 0,0,0))
 
@@ -278,7 +278,7 @@ pipeline = Pipeline(
     GetItemFromTracker('http://{}/{}/multi={}/'
         .format(TRACKER_HOST, TRACKER_ID, MULTI_ITEM_SIZE),
         downloader, VERSION),
-    PrepareDirectories(warc_prefix='curiouscat'),
+    PrepareDirectories(warc_prefix='radikal'),
     WgetDownload(
         WgetArgs(),
         max_tries=1,
