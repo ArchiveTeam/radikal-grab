@@ -60,7 +60,7 @@ if not WGET_AT:
 VERSION = '20211226.01'
 USER_AGENT = 'Archiveteam (https://wiki.archiveteam.org/; communicate at https://webirc.hackint.org/#ircs://irc.hackint.org/#archiveteam)'
 TRACKER_ID = 'radikal'
-TRACKER_HOST = 'legacy-api.arpa.lfwweewi'
+TRACKER_HOST = 'legacy-api.arpa.li'
 MULTI_ITEM_SIZE = 1
 
 

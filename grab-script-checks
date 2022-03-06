@@ -16,3 +16,11 @@ some exact https://radikal.ru/Img/GetGalleryPage
 [daterange:1583049600-1583052000]
 some discovered idrange:6224395696-6224397033
 some discovered idrange:6224397033-6224398085
+
+
+# A longer one
+[idrange:14432300-130883329]
+some exact http://u.foto.radikal.ru/0703/00/18011ab61d52t.jpg
+some exact https://s47.radikal.ru/i115/0904/85/2008ccda9db8t.jpg
+some exact https://s58.radikal.ru/i161/0808/3e/1c28d766dc42t.jpg
+not exact https://i039.radikal.ru/0905/82/37820761538ft.jpg

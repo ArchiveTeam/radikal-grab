@@ -39,7 +39,7 @@ if urlparse == nil or http == nil then
   abortgrab = true
 end
 
-local do_debug = true
+local do_debug = false
 print_debug = function(a)
   if do_debug then
     print(a)
@@ -144,6 +144,11 @@ allowed = function(url, parenturl)
   return false
 end
 
+
+local is_image_resource_url = function(s)
+  return string.match(s, "^https?://[is]%d+%.radikal.ru/.+t%.jpg$")
+          or string.match(s, "^https?://[ur]%.foto%.radikal.ru/.+t%.jpg$")
+end
 
 
 wget.callbacks.download_child_p = function(urlpos, parent, depth, start_url_parsed, iri, verdict, reason)
@@ -274,7 +279,8 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
 
         -- Queue the thumbnail
         local t_type_thumbnail = this_img["PublicPrevUrl"]
-        assert(string.match(t_type_thumbnail, "^https?://[is]%d+%.radikal.ru/.+t%.jpg$"))
+        print_debug("Thumb is " .. t_type_thumbnail)
+        assert(is_image_resource_url(t_type_thumbnail))
         check(this_img["PublicPrevUrl"])
       end
       -- Queue the next page
@@ -318,6 +324,10 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
       end
 
     end
+  end
+
+  if not status_code == 404 and is_image_resource_url(url["url"]) then
+    assert(not string.match(load_html(), "<html"))
   end
 
   if status_code == 200 and not (string.match(url, "%.jpe?g$") or string.match(url, "%.png$")) then
@@ -401,7 +411,7 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
 
   local is_valid_0 = url["url"] == "https://this-is-a.dummy-site.jaa-wants-the-tld.invalid/" .. current_item_value
                   or url["url"] == "https://this-is-a.dummy-site.jaa-wants-the-tld.invalid/d" .. current_item_value
-  local is_valid_404 = string.match(url["url"], "^https?://[is]%d+%.radikal.ru/")
+  local is_valid_404 = is_image_resource_url(url["url"])
 
   -- Whitelist instead of blacklist status codes
   if status_code ~= 200
