@@ -18,7 +18,7 @@ import time
 import string
 import json
 import requests
-from base64 import b64encode
+import base64
 
 import seesaw
 from seesaw.externalprocess import WgetDownload
@@ -57,7 +57,7 @@ if not WGET_AT:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20211226.01'
+VERSION = '20220307.01'
 USER_AGENT = 'Archiveteam (https://wiki.archiveteam.org/; communicate at https://webirc.hackint.org/#ircs://irc.hackint.org/#archiveteam)'
 TRACKER_ID = 'radikal'
 TRACKER_HOST = 'legacy-api.arpa.li'
@@ -216,7 +216,7 @@ class WgetArgs(object):
         ]
         
         item_names = item['item_name'].split('\0')
-        assert len(item_names) <= MULTI_ITEM_SIZE, "Basic check, got " + b64encode(item['item_name'].encode("utf-8")).decode("utf-8")
+        assert len(item_names) <= MULTI_ITEM_SIZE, "Basic check, got " + base64.b64encode(item['item_name'].encode("utf-8")).decode("utf-8")
         start_urls = []
         item_names_table = []
         
@@ -252,7 +252,7 @@ class WgetArgs(object):
         item['start_urls'] = json.dumps(start_urls)
         item['item_names_table'] = json.dumps(item_names_table)
 
-        assert len(item['item_name'].split('\0')) <= MULTI_ITEM_SIZE, "Final size " + b64encode(item['item_name'].encode("utf-8")).decode("utf-8")
+        assert len(item['item_name'].split('\0')) <= MULTI_ITEM_SIZE, "Final size " + base64.b64encode(item['item_name'].encode("utf-8")).decode("utf-8")
 
         if 'bind_address' in globals():
             wget_args.extend(['--bind-address', globals()['bind_address']])
@@ -271,7 +271,7 @@ class WgetArgs(object):
 project = Project(
     title = 'radikal',
     project_html = '''
-    <img class="project-logo" alt="logo" src="https://wiki.archiveteam.org/images/f/f5/CuriousCat_logo.png" height="50px"/>
+    <img class="project-logo" alt="logo" src="https://wiki.archiveteam.org/images/f/f6/Radikal-logo.gif" height="50px"/>
     <h2>Radikal.ru <span class="links"><a href="https://radikal.ru/">Website</a> &middot; <a href="http://tracker.archiveteam.org/radikal/">Leaderboard</a></span></h2>
     ''',
     )#utc_deadline = datetime.datetime(2021,9,13, 0,0,0))
