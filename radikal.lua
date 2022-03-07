@@ -311,8 +311,10 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
       print_debug("This ID result is " .. this_id_result)
 
       if last_id_result then
-        assert(this_id_result > last_id_result)
-        discover_item("idrange", tostring(last_id_result) .. "-" .. tostring(this_id_result))
+        if (this_id_result ~= last_id_result) then
+          assert(this_id_result > last_id_result)
+          discover_item("idrange", tostring(last_id_result) .. "-" .. tostring(this_id_result))
+        end
       end -- Else this is after the first iteration
 
       last_id_result = this_id_result
