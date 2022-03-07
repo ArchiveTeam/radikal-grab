@@ -491,7 +491,7 @@ end
 
 
 wget.callbacks.finish = function(start_time, end_time, wall_time, numurls, total_downloaded_bytes, total_download_time)
-  queue_list_to(discovered_items, 'fill-me-in')
+  queue_list_to(discovered_items, "radikal-y2nascr1jaeaje2")
   end_of_item()
 end
 
