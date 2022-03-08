@@ -57,7 +57,7 @@ if not WGET_AT:
 #
 # Update this each time you make a non-cosmetic change.
 # It will be added to the WARC files and reported to the tracker.
-VERSION = '20220307.03'
+VERSION = '20220308.01'
 USER_AGENT = 'Archiveteam (https://wiki.archiveteam.org/; communicate at https://webirc.hackint.org/#ircs://irc.hackint.org/#archiveteam)'
 TRACKER_ID = 'radikal'
 TRACKER_HOST = 'legacy-api.arpa.li'
@@ -234,6 +234,7 @@ class WgetArgs(object):
                 wget_args.extend(['--warc-header', 'radikal-idrange: ' + item_value])
                 wget_args.append(f'https://this-is-a.dummy-site.jaa-wants-the-tld.invalid/{item_value}')
                 set_start_url(item_type, item_value, f'https://this-is-a.dummy-site.jaa-wants-the-tld.invalid/{item_value}')
+                wget_args.append(f'https://this-is-a.dummy-site.jaa-wants-the-tld.invalid/end{item_value}')
             elif item_type == 'daterange':
                 # Assumptions I'm making in this scheme:
                 # - If the list is modified in the middle, it's only deletions, not insertions

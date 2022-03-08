@@ -29,6 +29,9 @@ local DATE_SLICE_TARGET_SECONDS = 1200
 
 local last_id_result = nil
 local previously_queued_date = nil
+local alternate_thumbnails = {}
+
+local to_queue = {}
 
 
 io.stdout:setvbuf("no") -- So prints are not buffered - http://lua.2524044.n2.nabble.com/print-stdout-and-flush-td6406981.html
@@ -56,7 +59,8 @@ end
 end_of_item = function()
   last_id_result = nil
   previously_queued_date = nil
-
+  alternate_thumbnails = {}
+  assert(#to_queue == 0)
 end
 
 set_new_item = function(url)
@@ -117,6 +121,11 @@ read_file = function(file)
   end
 end
 
+local is_image_resource_url = function(s)
+  return string.match(s, "^https?://[is]%d+%.radikal.ru/.+[tx]%.jpg$")
+          or string.match(s, "^https?://[ur]%.foto%.radikal.ru/.+[tx]%.jpg$")
+end
+
 allowed = function(url, parenturl)
   assert(parenturl ~= nil)
 
@@ -142,12 +151,6 @@ allowed = function(url, parenturl)
   end
 
   return false
-end
-
-
-local is_image_resource_url = function(s)
-  return string.match(s, "^https?://[is]%d+%.radikal.ru/.+t%.jpg$")
-          or string.match(s, "^https?://[ur]%.foto%.radikal.ru/.+t%.jpg$")
 end
 
 
@@ -244,12 +247,17 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
     end
     return html
   end
-  
+
   local function queue_gallery_query(image_id_anchor, direction, pagesize, date_anchor)
     table.insert(urls, {url="https://radikal.ru/Img/GetGalleryPage",
                         post_data="AnchorId=" .. image_id_anchor .. "&Direct=" .. direction ..
                         "&Tag=&PageSize=" .. pagesize .. "&DateTimeAnchor=" .. date_anchor})
   end
+
+  for _, url in pairs(to_queue) do
+    check(url)
+  end
+  to_queue = {}
 
   if current_item_type == 'idrange' then
     local first_id = string.match(current_item_value, "^(%d+)%-") -- Noninclusive
@@ -283,8 +291,11 @@ wget.callbacks.get_urls = function(file, url, is_css, iri)
 
         -- Queue the thumbnail
         local t_type_thumbnail = this_img["PublicPrevUrl"]
+        local x_type_thumbnail = this_img["InternalPrevUrl"]
         print_debug("Thumb is " .. t_type_thumbnail)
         assert(is_image_resource_url(t_type_thumbnail))
+        assert(is_image_resource_url(x_type_thumbnail))
+        alternate_thumbnails[t_type_thumbnail] = x_type_thumbnail
         check(this_img["PublicPrevUrl"])
       end
       -- Queue the next page
@@ -417,6 +428,7 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
 
   local is_valid_0 = url["url"] == "https://this-is-a.dummy-site.jaa-wants-the-tld.invalid/" .. current_item_value
                   or url["url"] == "https://this-is-a.dummy-site.jaa-wants-the-tld.invalid/d" .. current_item_value
+                  or url["url"] == "https://this-is-a.dummy-site.jaa-wants-the-tld.invalid/end" .. current_item_value
   local is_valid_404 = is_image_resource_url(url["url"])
 
   -- Whitelist instead of blacklist status codes
@@ -425,6 +437,21 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
     and not (status_code == 404 and is_valid_404) then
     print("Server returned " .. http_stat.statcode .. " (" .. err .. "). Sleeping.\n")
     do_retry = true
+  end
+
+  if status_code == 0
+    and (err == "CONSSLERR" or err == "HERR")
+    and is_image_resource_url(url["url"]) then
+    if alternate_thumbnails[url["url"]] ~= nil then
+      print_debug("Going to queue this failed thumbnail's alternate")
+      table.insert(to_queue, alternate_thumbnails[url["url"]])
+    else
+      -- Do nothing
+      print_debug("This failed thumbnail has no alternate")
+    end
+    do_retry = true
+    maxtries = 0
+    url_is_essential = false
   end
 
   if do_retry then
