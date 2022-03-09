@@ -439,8 +439,9 @@ wget.callbacks.httploop_result = function(url, err, http_stat)
     do_retry = true
   end
 
-  if status_code == 0
-    and (err == "CONSSLERR" or err == "HERR")
+  if ((status_code == 0
+      and (err == "CONSSLERR" or err == "HERR"))
+      or status_code == 500 or status_code == 503)
     and is_image_resource_url(url["url"]) then
     if alternate_thumbnails[url["url"]] ~= nil then
       print_debug("Going to queue this failed thumbnail's alternate")
